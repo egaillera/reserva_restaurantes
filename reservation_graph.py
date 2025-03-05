@@ -1,0 +1,100 @@
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from typing import Annotated, Optional
+from typing_extensions import TypedDict
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from pydantic import BaseModel, Field
+from langgraph.prebuilt import ToolNode, tools_condition
+from langchain_core.tools import tool
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command, interrupt
+from icecream import ic
+from langchain_core.messages import AIMessage
+
+from extraction_agent import execute_extractor
+from reservation_schema import ReservationData, all_fields_filled
+
+
+class State(TypedDict):
+    messages: Annotated[list, add_messages]
+    asking: bool
+    reservation_data: ReservationData
+
+    def __init__(self,asking=False):
+        self.asking = asking
+
+memory = MemorySaver()
+
+
+def router_node(state:State):
+    """
+    Router node that will extract the data from the user input and store it in the state,
+    if we are not in the asking mode. If we are in the asking mode, we will wait for the user
+    to answer the previous question. 
+
+    Args:
+        state (State): State of the conversation
+    """
+    print("router_node")
+    ic(state)
+
+    # If we are not in the asking mode, the input comes from the user, so
+    # we have to extract the data from the message
+    if state["asking"] == False:
+        extracted_data = execute_extractor(state["messages"][-1].content)
+        ic(extracted_data)
+
+        #TODO: fill the reservation_data with the extracted data. If the ReservationData
+        # is filled, is better to move to another node (Confirmation node)
+        if extracted_data[0]['name'] != None:
+            return {"reservation_data":ReservationData(name=extracted_data[0]['name']),
+                    "messages":[AIMessage(content="Reserva realizada con éxito")]}
+    else:
+        # We do nothing: we don't touch the state, because
+        # we are waiting for the user to answer the question
+        return state
+
+def ask_question(state:State):
+    #TODO: decide question to ask based on the fields that are missing
+    print("ask_question")
+    ic(state)
+    return {"messages":[AIMessage(content="¿A qué nombre debo hacer la reserva?")],"asking":True}
+
+def check_data(state:State):
+    print("check_data")
+    ic(state)
+    #TODO: is better to add another node (Confirmation node) to confirm the reservation, once
+    # all the data is filled
+    if state["asking"] or all_fields_filled(state["reservation_data"]) == True:
+        return END     
+    else:
+        return "ask_question"
+
+graph_builder = StateGraph(State)
+graph_builder.add_node("router", router_node)
+graph_builder.add_node("ask_question", ask_question)
+
+graph_builder.add_edge(START, "router")
+graph_builder.add_conditional_edges("router", check_data)
+graph_builder.add_edge("ask_question", "router")
+
+graph = graph_builder.compile(checkpointer=memory)
+
+config = {"configurable":{"thread_id": 1}}
+
+with open("graph.png","wb") as file:
+     #file.write(graph.get_graph().draw_mermaid_png())
+     file.close()
+
+while True:
+    user_input = input("User: ")
+    state = graph.invoke({"messages": [user_input], "reservation_data": ReservationData(), "asking":False},
+             config,
+             stream_mode="values")
+    ic(state)
+    print("Assistant: ",state["messages"][-1].content)
+
+    
+
+

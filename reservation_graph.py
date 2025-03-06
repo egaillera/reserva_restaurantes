@@ -42,21 +42,40 @@ def router_node(state:State):
     print("router_node")
     ic(state)
 
+    if "reservation_data" not in state.keys():
+        ic("Creating empty ReservationData()")
+        reservation_data_status = ReservationData()
+    else:
+        reservation_data_status = state["reservation_data"]
+
     # If we are not in the asking mode, the input comes from the user, so
     # we have to extract the data from the message
     if state["asking"] == False:
         extracted_data = execute_extractor(state["messages"][-1].content)
         ic(extracted_data)
 
-        #TODO: fill the reservation_data with the extracted data. If the ReservationData
-        # is filled, is better to move to another node (Confirmation node)
-        if extracted_data[0]['name'] != None:
-            return {"reservation_data":ReservationData(name=extracted_data[0]['name']),
+        # Fill the reservation_data with the extracted data. 
+        if len(extracted_data) > 0:
+            for key in extracted_data[0]:
+                #TODO: check that every attribute extracted is right: a name has a name and a surname,
+                # a phone number has 9 digits, etc.
+                ic(key)
+                ic(extracted_data[0][key])
+                setattr(reservation_data_status,key,extracted_data[0][key])
+                ic(reservation_data_status)
+
+        # TODO If the reservation_data is filled, we can proceed to the confirmation node
+        ic(all_fields_filled(reservation_data_status))
+        if all_fields_filled(reservation_data_status) == True:
+            return {"reservation_data":reservation_data_status,
                     "messages":[AIMessage(content="Reserva realizada con éxito")]}
+        else:
+            return {"reservation_data":reservation_data_status}
+
     else:
         # We do nothing: we don't touch the state, because
         # we are waiting for the user to answer the question
-        return state
+        return {"reservation_data":reservation_data_status}
 
 def ask_question(state:State):
     print("ask_question")
@@ -64,6 +83,7 @@ def ask_question(state:State):
 
     # Find the first field of the reservation_data that is not filled
     field_to_fill_description = first_field_not_filled(state["reservation_data"])
+    ic(field_to_fill_description)
 
     # Call a model to find the right question to ask to the user to fill the field
     system_prompt = """You have to generate a question to ask a user for a specific item regarding to a reservation
@@ -111,7 +131,8 @@ with open("graph.png","wb") as file:
 
 while True:
     user_input = input("User: ")
-    state = graph.invoke({"messages": [user_input], "reservation_data": ReservationData(), "asking":False},
+    print("graph_invoke")
+    state = graph.invoke({"messages": [user_input], "asking":False},
              config,
              stream_mode="values")
     ic(state)

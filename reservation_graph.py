@@ -30,7 +30,7 @@ memory = MemorySaver()
 llm = ChatOllama(model="llama3.1:8b", temperature = 0.7)
 
 
-def router_node(state:State):
+def router_node(state: State):
     """
     Router node that will extract the data from the user input and store it in the state,
     if we are not in the asking mode. If we are in the asking mode, we will wait for the user
@@ -42,40 +42,33 @@ def router_node(state:State):
     print("router_node")
     ic(state)
 
-    if "reservation_data" not in state.keys():
-        ic("Creating empty ReservationData()")
-        reservation_data_status = ReservationData()
-    else:
-        reservation_data_status = state["reservation_data"]
+    # Initialize reservation_data_status
+    reservation_data_status = state.get("reservation_data", ReservationData())
+    ic(reservation_data_status)
 
-    # If we are not in the asking mode, the input comes from the user, so
-    # we have to extract the data from the message
-    if state["asking"] == False:
+    # If we are not in the asking mode, extract data from the user's message
+    if not state["asking"]:
         extracted_data = execute_extractor(state["messages"][-1].content)
         ic(extracted_data)
 
-        # Fill the reservation_data with the extracted data. 
-        if len(extracted_data) > 0:
-            for key in extracted_data[0]:
-                #TODO: check that every attribute extracted is right: a name has a name and a surname,
-                # a phone number has 9 digits, etc.
+        # Fill the reservation_data with the extracted data
+        if extracted_data:
+            for key, value in extracted_data[0].items():
+                # TODO: Validate each attribute (e.g., name format, phone number length)
                 ic(key)
-                ic(extracted_data[0][key])
-                setattr(reservation_data_status,key,extracted_data[0][key])
+                ic(value)
+                setattr(reservation_data_status, key, value)
                 ic(reservation_data_status)
 
-        # TODO If the reservation_data is filled, we can proceed to the confirmation node
-        ic(all_fields_filled(reservation_data_status))
-        if all_fields_filled(reservation_data_status) == True:
-            return {"reservation_data":reservation_data_status,
-                    "messages":[AIMessage(content="Reserva realizada con éxito")]}
-        else:
-            return {"reservation_data":reservation_data_status}
-
-    else:
-        # We do nothing: we don't touch the state, because
-        # we are waiting for the user to answer the question
-        return {"reservation_data":reservation_data_status}
+        # Check if all fields are filled and proceed accordingly
+        if all_fields_filled(reservation_data_status):
+            return {
+                "reservation_data": reservation_data_status,
+                "messages": [AIMessage(content="Reserva realizada con éxito")]
+            }
+    
+    # Return the updated state
+    return {"reservation_data": reservation_data_status}
 
 def ask_question(state:State):
     print("ask_question")

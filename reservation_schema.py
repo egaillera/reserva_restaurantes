@@ -3,8 +3,8 @@ from typing import Optional
 from icecream import ic
 
 class ReservationData(BaseModel):
-    name: str = Field("",description="name of the person who is doing the reservation")
-    #n_guests: int = Field(0,description="number of guests of the reservation")
+    name: str = Field(None,description="name of the person who is doing the reservation for a restaurant")
+    n_guests: int = Field(0,description="number of guests of the reservation for a restaurant")
     #phone: str = Field(description="phone number of the person who made the reservation")
     #date: str = Field(description="date of the reservation")
     #time: str = Field(description="time of the reservation")
@@ -24,7 +24,7 @@ def all_fields_filled(instance: BaseModel) -> bool:
         current_value = getattr(instance, field_name)
         
         # If the default value exists and the current value is the same, return False
-        if default_value is not None and current_value == default_value:
+        if current_value == default_value:
             return False
     
     return True  # All fields have different values from their defaults
@@ -48,12 +48,9 @@ def first_field_not_filled(instance: BaseModel) -> Optional[str]:
         current_value = getattr(instance, field_name)
 
         # If the current value matches the default, return its description
-        if default_value is not None and current_value == default_value:
+        if current_value == default_value:
             return field_info.description if field_info.description else None
     
     return None  # All fields have been modified
 
 
-r = ReservationData(name="")
-
-ic(first_field_not_filled(r))  # 'name of the person who made the reservation'

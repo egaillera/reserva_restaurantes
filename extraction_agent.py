@@ -21,7 +21,7 @@ def create_extraction_agent():
     
     functions = [ReservationData]
 
-    #llm = ChatOllama(model="llama3.1:8b", temperature = 0)
+    #llm = ChatOllama(model="qwen2.5", temperature = 0)
     llm = ChatOpenAI(model="gpt-4o-mini", temperature = 0)
 
     llm_with_functions = llm.bind_tools(functions)
@@ -33,8 +33,8 @@ def create_extraction_agent():
                     Take into account your input will be a full conversation o part of it,
                     but the context always will be about a reservation
                     Conversation will be in Spanish.
-                    Only extract relevant information from the text \
-                    If you do not know the value of an attribute asked to extract, \
+                    Only extract relevant information from the text 
+                    If you do not know the value of an attribute asked to extract, 
                     return null for the attribute's value."""
 
     prompt = ChatPromptTemplate.from_messages([

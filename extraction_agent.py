@@ -27,9 +27,7 @@ def create_extraction_agent():
     llm_with_functions = llm.bind_tools(functions)
 
     system_prompt = """You are an expert extraction algorithm. Your mission is to extract
-                    the following:
-                    - name: name of the person who made the reservation
-                    - n_guests: number of guests of the reservation
+                    information about a reservation in restaurant.
                     Take into account your input will be a full conversation o part of it,
                     but the context always will be about a reservation
                     Conversation will be in Spanish.
@@ -63,6 +61,8 @@ def main():
         request = input("Detalla tu reserva: ")
         result = execute_extractor(request)
         print(result)
+        for key in result[0].keys():
+            print(f"{key}: {result[0][key]}")
 
 
 if __name__ == "__main__":

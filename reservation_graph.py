@@ -11,9 +11,10 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command, interrupt
 from icecream import ic
 from langchain_core.messages import AIMessage
+from langchain_core.prompts import ChatPromptTemplate
 
 from extraction_agent import execute_extractor
-from reservation_schema import ReservationData, all_fields_filled
+from reservation_schema import ReservationData, all_fields_filled, first_field_not_filled
 
 
 class State(TypedDict):
@@ -25,6 +26,8 @@ class State(TypedDict):
         self.asking = asking
 
 memory = MemorySaver()
+
+llm = ChatOllama(model="llama3.1:8b", temperature = 0.7)
 
 
 def router_node(state:State):
@@ -56,10 +59,29 @@ def router_node(state:State):
         return state
 
 def ask_question(state:State):
-    #TODO: decide question to ask based on the fields that are missing
     print("ask_question")
     ic(state)
-    return {"messages":[AIMessage(content="¿A qué nombre debo hacer la reserva?")],"asking":True}
+
+    # Find the first field of the reservation_data that is not filled
+    field_to_fill_description = first_field_not_filled(state["reservation_data"])
+
+    # Call a model to find the right question to ask to the user to fill the field
+    system_prompt = """You have to generate a question to ask a user for a specific item regarding to a reservation
+                    You will receive the the descriptiom of the item and you have to genearte the question.
+                    Be very polite and clear in your question: start with terms like "Por favor" or "Podría decirme" or "Disculpe"
+                    JUST generate the question, nothing else
+                    Question MUST be in Spanish."""
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+         ("user", "{item}"),
+        ])
+    
+    chain = prompt | llm
+    result = chain.invoke({"item":field_to_fill_description})
+    ic(result.content)
+    
+    return {"messages":[AIMessage(content=result.content)],"asking":True}
 
 def check_data(state:State):
     print("check_data")

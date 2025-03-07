@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, Any
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, Any
 from icecream import ic
 
 class ReservationData(BaseModel):
@@ -67,6 +67,7 @@ def assign_if_default(instance: BaseModel, data: dict[str, Any]) -> None:
         current_value = getattr(instance, field_name)
 
         # Check if the field has not been modified (is still at its default)
+        # TODO: Validate each attribute (e.g., name format, phone number length)
         if default_value is not None:
             if current_value == default_value and field_name in data:
                 setattr(instance, field_name, data[field_name])

@@ -14,8 +14,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 
 from extraction_agent import execute_extractor
-from reservation_schema import ReservationData, all_fields_filled, first_field_not_filled
-
+from reservation_schema import * 
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -25,9 +24,7 @@ class State(TypedDict):
     def __init__(self,asking=False):
         self.asking = asking
 
-memory = MemorySaver()
 
-llm = ChatOllama(model="llama3.1:8b", temperature = 0.7)
 
 
 def router_node(state: State):
@@ -42,7 +39,7 @@ def router_node(state: State):
     print("router_node")
     ic(state)
 
-    # Initialize reservation_data_status
+    # Initialize reservation_data_status with an empty class if it doesn't exist
     reservation_data_status = state.get("reservation_data", ReservationData())
     ic(reservation_data_status)
 
@@ -51,14 +48,17 @@ def router_node(state: State):
         extracted_data = execute_extractor(state["messages"][-1].content)
         ic(extracted_data)
 
-        # Fill the reservation_data with the extracted data
+        # Fill the new reservation_data with the extracted data
         if extracted_data:
-            for key, value in extracted_data[0].items():
+            assign_if_default(reservation_data_status,extracted_data[0])
+            ic(reservation_data_status)
+
+            #for key, value in extracted_data[0].items():
                 # TODO: Validate each attribute (e.g., name format, phone number length)
-                ic(key)
-                ic(value)
-                setattr(reservation_data_status, key, value)
-                ic(reservation_data_status)
+                #ic(key)
+                #ic(value)
+                #setattr(reservation_data_status, key, value)
+                #ic(reservation_data_status)
 
         # Check if all fields are filled and proceed accordingly
         if all_fields_filled(reservation_data_status):
@@ -105,6 +105,12 @@ def check_data(state:State):
         return END     
     else:
         return "ask_question"
+    
+ic.disable()
+
+memory = MemorySaver()
+
+llm = ChatOllama(model="llama3.1:8b", temperature = 0.7)
 
 graph_builder = StateGraph(State)
 graph_builder.add_node("router", router_node)

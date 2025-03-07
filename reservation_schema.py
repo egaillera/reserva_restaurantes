@@ -4,10 +4,10 @@ from icecream import ic
 
 class ReservationData(BaseModel):
     name: str = Field(None,description="name of the person who is doing the reservation for a restaurant")
-    n_guests: int = Field(0,description="number of guests of the reservation for a restaurant")
-    #phone: str = Field(description="phone number of the person who made the reservation")
-    #date: str = Field(description="date of the reservation")
-    #time: str = Field(description="time of the reservation")
+    n_guests: int = Field(0, description="number of guests of the reservation for a restaurant")
+    phone: str = Field(None, description="phone number of the person who made the reservation")
+    date: str = Field(None, description="date of the restaurant reservation")
+    time: str = Field(None, description="time of the restaurant reservation")
 
 def all_fields_filled(instance: BaseModel) -> bool:
     """

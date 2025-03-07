@@ -16,6 +16,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from extraction_agent import execute_extractor
 from reservation_schema import * 
 
+COMPLETED_RESERVATION = "Reserva realizada con éxito"
+
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     asking: bool
@@ -23,8 +25,6 @@ class State(TypedDict):
 
     def __init__(self,asking=False):
         self.asking = asking
-
-
 
 
 def router_node(state: State):
@@ -36,8 +36,10 @@ def router_node(state: State):
     Args:
         state (State): State of the conversation
     """
-    print("router_node")
+    function_started = "router_node"
+    ic(function_started)
     ic(state)
+    
 
     # Initialize reservation_data_status with an empty class if it doesn't exist
     reservation_data_status = state.get("reservation_data", ReservationData())
@@ -50,38 +52,34 @@ def router_node(state: State):
 
         # Fill the new reservation_data with the extracted data
         if extracted_data:
-            assign_if_default(reservation_data_status,extracted_data[0])
+            assign_if_default(reservation_data_status,extracted_data)
             ic(reservation_data_status)
-
-            #for key, value in extracted_data[0].items():
-                # TODO: Validate each attribute (e.g., name format, phone number length)
-                #ic(key)
-                #ic(value)
-                #setattr(reservation_data_status, key, value)
-                #ic(reservation_data_status)
 
         # Check if all fields are filled and proceed accordingly
         if all_fields_filled(reservation_data_status):
             return {
                 "reservation_data": reservation_data_status,
-                "messages": [AIMessage(content="Reserva realizada con éxito")]
+                "messages": [AIMessage(content=COMPLETED_RESERVATION)]
             }
     
     # Return the updated state
     return {"reservation_data": reservation_data_status}
 
 def ask_question(state:State):
-    print("ask_question")
+    function_started = "ask_question"
+    ic(function_started)
     ic(state)
 
     # Find the first field of the reservation_data that is not filled
-    field_to_fill_description = first_field_not_filled(state["reservation_data"])
+    field_to_fill_description = list_unfilled_fields(state["reservation_data"])
     ic(field_to_fill_description)
 
     # Call a model to find the right question to ask to the user to fill the field
-    system_prompt = """You have to generate a question to ask a user for a specific item regarding to a reservation
-                    You will receive the the descriptiom of the item and you have to genearte the question.
-                    Be very polite and clear in your question: start with terms like "Por favor" or "Podría decirme" or "Disculpe"
+    system_prompt = """Your mission is to ask user that is trying to make a reservation in a restaurant.
+                    for the information still needed to make it. You will receive the the description of the items that are missing, so you 
+                    have to generate a text asking the user to provide the information.
+                    Just write something like "Necesito saber este dato, este otro dato y este otro", instead of asking several questions.
+                    Be very polite and clear in your text: start with terms like "Por favor" or "Podría decirme" or "Disculpe"
                     JUST generate the question, nothing else
                     Question MUST be in Spanish."""
 
@@ -97,7 +95,8 @@ def ask_question(state:State):
     return {"messages":[AIMessage(content=result.content)],"asking":True}
 
 def check_data(state:State):
-    print("check_data")
+    function_started = "check_data"
+    ic(function_started)
     ic(state)
     #TODO: is better to add another node (Confirmation node) to confirm the reservation, once
     # all the data is filled
@@ -130,12 +129,14 @@ with open("graph.png","wb") as file:
 
 while True:
     user_input = input("User: ")
-    print("graph_invoke")
     state = graph.invoke({"messages": [user_input], "asking":False},
              config,
              stream_mode="values")
-    ic(state)
     print("Assistant: ",state["messages"][-1].content)
+   
+    if state["messages"][-1].content == COMPLETED_RESERVATION:
+        print(state["reservation_data"])
+        quit()
 
     
 
